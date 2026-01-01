@@ -1,29 +1,54 @@
 package server
 
 import (
+	"fmt"
 	"io"
 	"log"
 	"net"
 	"strconv"
+	"strings"
+
 	"github.com/vaasu2002/in-memory-storage-engine/config"
+	"github.com/vaasu2002/in-memory-storage-engine/core"
 )
 
 // TODO: This max read in one shot is 512 Bytes, to allow input > 512 Bytes, repeat read until EOF.
-func readCommand(c net.Conn) (string, error) {
+// Reading all the bytes that are coming in from the client into a buffer
+// then decoding it into an array string
+// When cli or any clinet wants to issue command to this server
+// command typically has root command and arguments like PUT a,10
+// This is sent to the server as array of bytes
+// we convert it to array of strings
+func readCommand(c net.Conn) (*core.KvCmd, error) {
+	// Make buffer of 512 bytes
 	var buf []byte = make([]byte, 512)
+	// Read from the socket and store in buffer
 	n, err := c.Read(buf[:])
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return string(buf[:n]), nil
+	tokens, err := core.DecodeArrayString(buf[:n])
+	if err != nil {
+		log.Println("decode error:", err)
+		return nil, err
+	}
+	log.Printf("decoded tokens: %#v", tokens)
+
+	return &core.KvCmd{
+		Cmd:  strings.ToUpper(tokens[0]),
+		Args: tokens[1:],
+	}, nil
 }
 
+func respondError(err error, c net.Conn) {
+	c.Write([]byte(fmt.Sprintf("-%s\r\n", err)))
+}
 
-func respond(cmd string, c net.Conn) error {
-	if _, err := c.Write([]byte(cmd)); err != nil {
-		return err
+func respond(cmd *core.KvCmd, c net.Conn) {
+	err := core.EvalAndRespond(cmd, c)
+	if err != nil {
+		respondError(err, c)
 	}
-	return nil
 }
 
 func RunSyncTcpServer() {
@@ -59,12 +84,7 @@ func RunSyncTcpServer() {
 				}
 				log.Println("Error: ", err)
 			}
-			log.Println("Command: ", cmd)
-			
-			// Responding with same command to client (echoing)
-			if err = respond(cmd, c); err != nil {
-				log.Print("err write:", err)
-			}
+			respond(cmd, c)
 		}
 	}
 }
