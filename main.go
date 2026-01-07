@@ -18,6 +18,6 @@ func setupFlags() {
 
 func main() {
 	setupFlags()
-	log.Println("Starting the storage server....")
-	server.RunSyncTcpServer()
+	log.Println("Starting the storage engine....")
+	server.RunAsyncTcpServer()
 }

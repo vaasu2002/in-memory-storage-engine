@@ -1,7 +1,7 @@
 package core
 
 import (
-	"net"
+	"io"
 
 	"github.com/vaasu2002/in-memory-storage-engine/core/command"
 	"github.com/vaasu2002/in-memory-storage-engine/core/resp"
@@ -13,6 +13,6 @@ func DecodeArrayString(b []byte) ([]string, error) {
 	return resp.DecodeArrayString(b)
 }
 
-func EvalAndRespond(cmd *KvCmd, c net.Conn) error {
+func EvalAndRespond(cmd *KvCmd, c io.ReadWriter) error {
 	return command.EvalAndRespond(cmd, c)
 }
